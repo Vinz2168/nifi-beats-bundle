@@ -38,6 +38,7 @@ import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.flowfile.attributes.CoreAttributes;
 import org.apache.nifi.flowfile.attributes.FlowFileAttributeKey;
+import org.apache.nifi.migration.PropertyConfiguration;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.DataUnit;
 import org.apache.nifi.processor.ProcessContext;
@@ -140,6 +141,13 @@ public class ListenBeats extends AbstractProcessor implements ListenComponent {
     @Override
     public List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         return DESCRIPTORS;
+    }
+
+    @Override
+    public void migrateProperties(final PropertyConfiguration config) {
+        // Shared listener properties were renamed in NiFi 2.x; same migration as ListenTCP
+        config.renameProperty(ListenerProperties.OLD_WORKER_THREADS_PROPERTY_NAME, ListenerProperties.WORKER_THREADS.getName());
+        config.renameProperty(ListenerProperties.OLD_MESSAGE_DELIMITER_PROPERTY_NAME, ListenerProperties.MESSAGE_DELIMITER.getName());
     }
 
     @OnScheduled

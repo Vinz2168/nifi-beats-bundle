@@ -22,7 +22,7 @@
     <parent>
         <groupId>io.github.vinz2168</groupId>
         <artifactId>nifi-beats-bundle</artifactId>
-        <version>2.12.0-1</version>
+        <version>2.12.0-2</version>
     </parent>
 
     <artifactId>nifi-beats-processors</artifactId>

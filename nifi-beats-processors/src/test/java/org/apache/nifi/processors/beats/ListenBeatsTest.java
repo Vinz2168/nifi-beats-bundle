@@ -20,7 +20,9 @@ import org.apache.nifi.processors.beats.protocol.FrameType;
 import org.apache.nifi.processors.beats.protocol.ProtocolVersion;
 import org.apache.nifi.provenance.ProvenanceEventRecord;
 import org.apache.nifi.provenance.ProvenanceEventType;
+import org.apache.nifi.processor.util.listen.ListenerProperties;
 import org.apache.nifi.util.MockFlowFile;
+import org.apache.nifi.util.PropertyMigrationResult;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
 import java.util.zip.DeflaterOutputStream;
 
@@ -62,6 +65,21 @@ class ListenBeatsTest {
     @BeforeEach
     void createRunner() {
         runner = TestRunners.newTestRunner(ListenBeats.class);
+    }
+
+    @Test
+    void testMigrateProperties() {
+        runner.setProperty(ListenerProperties.OLD_WORKER_THREADS_PROPERTY_NAME, "3");
+        runner.setProperty(ListenerProperties.OLD_MESSAGE_DELIMITER_PROPERTY_NAME, "\\t");
+
+        final PropertyMigrationResult result = runner.migrateProperties();
+
+        assertEquals(Map.of(
+                ListenerProperties.OLD_WORKER_THREADS_PROPERTY_NAME, ListenerProperties.WORKER_THREADS.getName(),
+                ListenerProperties.OLD_MESSAGE_DELIMITER_PROPERTY_NAME, ListenerProperties.MESSAGE_DELIMITER.getName()
+        ), result.getPropertiesRenamed());
+        assertEquals("3", runner.getProcessContext().getProperty(ListenerProperties.WORKER_THREADS).getValue());
+        assertEquals("\\t", runner.getProcessContext().getProperty(ListenerProperties.MESSAGE_DELIMITER).getValue());
     }
 
     @Timeout(10)
