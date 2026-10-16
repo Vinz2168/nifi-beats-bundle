@@ -1,0 +1,14 @@
+nifi-beats-bundle
+Copyright 2026 Vincenzo Lombardo
+
+This product is a standalone port of the ListenBeats processor and its
+supporting classes from Apache NiFi (https://nifi.apache.org/),
+originally developed at The Apache Software Foundation
+(http://www.apache.org/) and released under the Apache License 2.0.
+
+Apache NiFi
+Copyright 2014-2026 The Apache Software Foundation
+
+This project is not affiliated with, endorsed by, or released by
+The Apache Software Foundation. Apache, Apache NiFi and NiFi are
+trademarks of The Apache Software Foundation.

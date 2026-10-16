@@ -1,42 +1,107 @@
 # nifi-beats-bundle
 
-Standalone port of Apache NiFi's `ListenBeats` processor (a listener for the
+**ListenBeats for Apache NiFi 2.x.** A community-maintained, standalone port
+of Apache NiFi's `ListenBeats` processor (a listener for the
 Elasticsearch/Logstash **Beats** protocol, e.g. Filebeat/Metricbeat) to the
-**NiFi 2.12.0** API.
+**NiFi 2.12.0** API. `ListenBeats` was deprecated in NiFi 1.x and fully
+removed from `nifi-extension-bundles` as of the 2.12.0 tag, so it no longer
+ships with NiFi core. This bundle rebuilds it as an external NAR, built
+against published NiFi 2.12.0 artifacts on Maven Central, so it can be
+dropped into any NiFi 2.12.x installation.
 
-`ListenBeats` was deprecated in NiFi 1.x and fully removed from
-`nifi-extension-bundles` as of the 2.12.0 tag, so it no longer ships with
-NiFi core. This bundle rebuilds it as an external NAR, built against
-published NiFi 2.12.0 artifacts on Maven Central, so it can be dropped into
-any NiFi 2.12.0 installation.
+> This project is not affiliated with, endorsed by, or released by The Apache
+> Software Foundation. Apache, Apache NiFi and NiFi are trademarks of The
+> Apache Software Foundation.
 
-## What it does
+## Components
+
+### Processors
+
+- [`ListenBeats`](#listenbeats)
+
+### ListenBeats
 
 Listens on a TCP port for the Beats wire protocol (version 2: `JSON`,
 `WINDOW_SIZE` and `COMPRESSED` frames), acknowledges each batch, and emits
-one FlowFile per message with:
+one FlowFile per message.
 
-- Relationship: `success`
-- Attributes: `beats.sender`, `beats.port`, `beats.sequencenumber` (single-message
-  batches only), `mime.type` (`application/json`)
-- Content: the raw JSON payload sent by the Beats client
+**Properties**
+
+| Property | Required | Default | Description |
+|---|---|---|---|
+| Port | yes | | The TCP port to listen on. Supports environment-scoped Expression Language. |
+| SSL Context Service | no | | Controller service implementing `org.apache.nifi.ssl.SSLContextProvider`. When set, TLS is enabled for socket connections. |
+| Client Authentication | no | `REQUIRED` | Client authentication policy when TLS is enabled (only shown when an SSL Context Service is set). |
+
+The processor also exposes NiFi's shared `ListenerProperties`: Local Network
+Interface, Receive Buffer Size, Max Size of Message Queue, Max Size of Socket
+Buffer, Character Set, Max Batch Size, Batching Message Delimiter and
+Worker Threads, with the same meaning as in `ListenTCP`.
+
+**Relationships**
+
+- `success`: messages received successfully.
+
+**Attributes written**
+
+- `beats.sender`: address of the sending Beats client
+- `beats.port`: port the message was received on
+- `beats.sequencenumber`: Beats sequence number (single-message batches only)
+- `mime.type`: `application/json`
+
+**Content**: the raw JSON payload sent by the Beats client.
+
+## Compatibility
+
+| Bundle version | NiFi version | Java | Status |
+|---|---|---|---|
+| 2.12.0-1 | 2.12.x | 21 | Supported |
+
+**Versioning policy**: the bundle version tracks the NiFi release it is built
+against (`2.12.0` means built against the NiFi 2.12.0 API). The numeric
+suffix (`-1`, `-2`, ...) marks a packaging-only or bug-fix revision of the
+bundle for the same NiFi release. A new NiFi minor release that requires a
+rebuild gets a new bundle version (e.g. `2.13.0-1`).
+
+## Maintenance
+
+Maintained on a best-effort basis by [@Vinz2168](https://github.com/Vinz2168).
+Please report bugs via [GitHub Issues](https://github.com/Vinz2168/nifi-beats-bundle/issues)
+and include:
+
+- bundle version and NiFi version
+- Java version and OS
+- Beats client and version (e.g. Filebeat 9.5.4) and its output configuration
+- whether TLS / client authentication is enabled
+- relevant `nifi-app.log` excerpts and, if possible, steps to reproduce
 
 ## Install
 
-1. Download `nifi-beats-nar-2.12.0.nar` from the
+1. Download `nifi-beats-nar-2.12.0-1.nar` from the
    [releases page](https://github.com/Vinz2168/nifi-beats-bundle/releases).
-2. Copy it into your NiFi installation's `lib/` directory.
-3. Restart NiFi. `ListenBeats` will appear in the "Add Processor" dialog.
+2. Copy it into your NiFi installation's `lib/` directory and restart NiFi,
+   or copy it into the `extensions/` directory to have NiFi autoload it
+   without a restart.
+3. `ListenBeats` will appear in the "Add Processor" dialog.
 
-Or build it yourself:
+Or build it yourself (Java 21+, Maven 3.9+):
 
 ```
 mvn clean verify
 ```
 
-produces `nifi-beats-nar/target/nifi-beats-nar-2.12.0.nar`.
+produces `nifi-beats-nar/target/nifi-beats-nar-2.12.0-1.nar`.
 
-## Porting notes: differences from the original 1.28.1 processor
+## Migrating flows from NiFi 1.x
+
+The Java package (`org.apache.nifi.processors.beats`), the class name
+(`ListenBeats`) and all property names (`Port`, `SSL_CONTEXT_SERVICE`,
+`Client Auth`) are unchanged from the original processor, so flows exported
+from NiFi 1.x resolve to this processor without edits.
+
+The Maven coordinates differ (`io.github.vinz2168:nifi-beats-nar` instead
+of `org.apache.nifi:nifi-beats-nar`), but NiFi selects this bundle
+automatically when it is the only one providing `ListenBeats`.
 
 The protocol codec itself (`protocol/`, `handler/`, `server/` packages) is
 carried over unchanged. Two real API breaks between NiFi 1.28 and 2.12
@@ -57,10 +122,6 @@ required code changes:
   need a controller service that implements `SSLContextProvider` (e.g. NiFi
   2.x's `StandardSSLContextService`) assigned to it.
 
-Not verified: the TLS/mutual-auth path end-to-end, binding to a non-default
-network interface, and NiFi's own flow.json import/migration tooling for a
-flow exported from a real 1.28.1 instance.
-
 ## Testing
 
 - `mvn clean verify` — unit tests (`ListenBeatsTest`) exercise single
@@ -71,7 +132,12 @@ flow exported from a real 1.28.1 instance.
   (`docker.elastic.co/beats/filebeat:9.5.4`) over the Logstash/Beats output
   — confirmed ACKs, FlowFile attributes, and JSON content.
 
+Not yet verified: the TLS/mutual-auth path end-to-end, binding to a
+non-default network interface, and NiFi's own flow.json import/migration
+tooling for a flow exported from a real 1.28.1 instance.
+
 ## License
 
-Apache License 2.0, inherited from the original Apache NiFi source
-(`org.apache.nifi.processors.beats`).
+Licensed under the [Apache License 2.0](LICENSE), inherited from the original
+Apache NiFi source (`org.apache.nifi.processors.beats`). See [NOTICE](NOTICE)
+for attribution.
